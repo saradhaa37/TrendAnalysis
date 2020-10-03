@@ -1,0 +1,118 @@
+from tkinter import *
+import tkinter as ttk
+import matplotlib.pyplot as plt
+import MySQLdb
+import pandas
+import numpy as np
+import mplcursors
+
+conn = MySQLdb.connect(host="localhost", user="PythoUN", passwd="Test@123", db="boatdb")
+cursor = conn.cursor()
+transactionName = np.array(pandas.read_sql("SELECT COLUMN_NAME FROM information_schema.columns WHERE table_schema='boatdb' AND table_name='CombinedTestResults' and COLUMN_NAME not like '%Transaction%';", conn))
+
+Lcolor= ['g','orange']  
+Ltestrepose=[]
+
+root = Tk()
+root.title("Trend Analysis")
+# Add a grid
+mainframe = Frame(root)
+mainframe.grid(column=0,row=0, sticky=(N,W,E,S) )
+mainframe.columnconfigure(0, weight = 1)
+mainframe.rowconfigure(0, weight = 1)
+mainframe.pack(pady = 200, padx = 200)
+
+# Create a Tkinter variable
+tkvar = StringVar(root)
+
+popupMenuTransaction = OptionMenu(mainframe, tkvar, *transactionName)
+Label(mainframe, text="Choose a transactions").grid(row = 1, column = 1)
+popupMenuTransaction.grid(row = 2, column =1)
+
+Lb1 = Listbox(root)
+
+#Del button
+bDelList = Button(root, text = "delete selection", command = lambda: delete(Lb1))
+bDelList.pack()
+
+#Generate Graph
+bGenGraph = Button(root, text = "Generate Graph", command = lambda: genGraph())
+bGenGraph.pack()
+
+#plotGraph()
+
+#top = Tk()
+# on change dropdown value
+def change_dropdown(*args): 
+    Lb1.insert(1, tkvar.get())
+    Lb1.pack()
+    #top.mainloop()
+    #print(tkvar.get())
+
+def delete(listbox):
+    global things
+    # Delete from Listbox
+    selection = Lb1.curselection()
+    Lb1.delete(selection[0])
+    # Delete from list that provided it
+    value = eval(Lb1.get(selection[0]))
+    ind = things.index(value)
+    #del(things[ind])
+    del(things[things.index(eval(Lb1.get(selection[0])))])
+    Ltestrepose.clear()
+    print(things)
+
+def genGraph():
+    transactionName = np.array(pandas.read_sql("select Transactions from boatdb.CombinedTestResults ORDER BY TransactionID ASC;", conn))
+    transactionID = np.array(pandas.read_sql("select TransactionID from boatdb.CombinedTestResults ORDER BY TransactionID ASC;", conn))
+    for i, listbox_entry in enumerate(Lb1.get(0, END)):
+        #test1ResTime =np.array(pandas.read_sql("select CT_1 from boatdb.CombinedTestResults ORDER BY TransactionID ASC;", conn))
+        print(str(Lb1.get(i)).replace('[','').replace(']',''))
+        value=str(Lb1.get(i)).replace('[\'','').replace('\']','')
+        sqlquery="select %s from boatdb.CombinedTestResults ORDER BY TransactionID ASC;"%value
+        print(sqlquery)
+        #test2ResTime = np.array(pandas.read_sql("select CT_2 from boatdb.CombinedTestResults ORDER BY TransactionID ASC;", conn))
+        test1ResTime =np.array(pandas.read_sql(sqlquery, conn))
+        Ltestrepose.append(test1ResTime)
+        #plt.figure(figsize=(10,10))
+        #plt.xticks(transactionID, transactionName)
+        #plt.plot(transactionID, test1ResTime, color=Lcolor[i])
+        #plt.xticks(transactionID, transactionName)
+        #plt.plot(transactionID, test2ResTime, color='orange')
+    print(Ltestrepose)
+    plt.figure(figsize=(10,10))
+    for i, listbox_entry in enumerate(Lb1.get(0, END)):
+        plt.xticks(transactionID, transactionName)
+        plt.plot(transactionID, Ltestrepose[i], color=Lcolor[i])
+    plt.xticks(rotation=10)
+    plt.xlabel('Test execution')
+    plt.ylabel('ResponseTime')
+    plt.title('Trend analysis')
+    plt.gca().legend(('CT_1','ST_1'))
+    mplcursors.cursor(hover=True)
+    plt.show()
+
+def plotGraph():
+    plt.figure(figsize=(10,10))
+    for i, listbox_entry in enumerate(Lb1.get(0, END)):
+        plt.xticks(transactionID, transactionName)
+        plt.plot(transactionID, Ltestrepose[i], color=Lcolor[i])
+    plt.xticks(rotation=10)
+    plt.xlabel('Test execution')
+    plt.ylabel('ResponseTime')
+    plt.title('Trend analysis')
+    #plt.gca().legend(('CT_1','ST_1'))
+    plt.gca().legend(Ltestrepose)
+    mplcursors.cursor(hover=True)
+    plt.show()
+
+
+
+#List box
+#Lb1 = Listbox(top)
+#Lb1.insert(1, tkvar.get())
+
+# link function to change dropdown
+tkvar.trace('w', change_dropdown)
+
+root.mainloop()
